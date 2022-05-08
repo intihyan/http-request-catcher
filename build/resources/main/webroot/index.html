@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Title</title>
+  <link href="json-formatter.css" type="text/css">
+  <script type="text/javascript" src="json-formatter.cjs.js"></script>
+  <style>
+    body, pre {
+      font-family: Source Code Pro,monospace;
+    }
+
+    table {
+      width: 100%;
+    }
+
+    td {
+      border: 1px dashed;
+    }
+
+    td:first-child{
+      width: 30%;
+    }
+
+    .tooltip {
+      position: relative;
+      display: inline-block;
+    }
+
+    .tooltip .tooltiptext {
+      visibility: hidden;
+      width: 140px;
+      background-color: #555;
+      color: #fff;
+      text-align: center;
+      border-radius: 6px;
+      padding: 5px;
+      position: absolute;
+      z-index: 1;
+      bottom: 150%;
+      left: 50%;
+      margin-left: -75px;
+      opacity: 0;
+      transition: opacity 0.3s;
+    }
+
+    .tooltip .tooltiptext::after {
+      content: "";
+      position: absolute;
+      top: 100%;
+      left: 50%;
+      margin-left: -5px;
+      border-width: 5px;
+      border-style: solid;
+      border-color: #555 transparent transparent transparent;
+    }
+
+    .tooltip:hover .tooltiptext {
+      visibility: visible;
+      opacity: 1;
+    }
+  </style>
+</head>
+<body>
+
+
+<div>
+  <div>
+    <input type="text" value="test">
+    <input type="button" value="Subscribe" onclick="connect()"/>
+    <lable class="status">
+
+    </lable>
+  </div>
+
+  <div style="margin-top: 10px">
+    <button onclick="clearAll()"> Clear Logs </button>
+    <button onclick="disconnect()"> Disconnect </button>
+  </div>
+
+  <div style="margin: 5px 0 10px">
+    Send request to this URL:
+    <span id="connection_url"> </span>
+
+    <div class="tooltip">
+      <button onclick="copyURL()">
+        <span class="tooltiptext" id="myTooltip">Copy to clipboard</span>
+        Copy text
+      </button>
+    </div>
+
+  </div>
+
+  <table class="message">
+    <tr class="header">
+      <th>Headers</th>
+      <th>Body</th>
+    </tr>
+  </table>
+</div>
+
+<script>
+  let table = document.querySelector('tbody')
+  let headerRow = document.querySelector('.header')
+  let socket
+  let state
+
+  const clearAll = () => {
+    let temp = []
+
+    for( const child of table.children){
+      if(!child.isSameNode(headerRow))
+        temp.push(child)
+    }
+
+    for(const t of temp)
+      t.remove();
+  }
+
+  const copyURL = () => {
+    let copyText = document.querySelector("#connection_url").innerText;
+    navigator.clipboard.writeText(copyText);
+
+    let tooltip = document.querySelector("#myTooltip");
+    tooltip.innerHTML = "Copied: " + copyText;
+  }
+
+  const disconnect = () => {
+    if(socket) {
+      socket.close()
+      state = 'CLOSED'
+    }
+  }
+
+  const log = (data) => {
+    let {header, body} = JSON.parse(data)
+
+    if(body && typeof body === 'string') {
+      try{
+        body = JSON.parse(body)
+      } catch(e){
+        console.error("Error in parsing body as json", body)
+      }
+    }
+    let tr = document.createElement("tr")
+    let td1 = document.createElement("td")
+
+    let td2 = document.createElement("td")
+
+    const formatter = new JSONFormatter(body);
+    td2.appendChild(formatter.render())
+    td1.innerHTML = `<h4> ${new Date().toLocaleTimeString()} </h4> <div style="white-space: pre-line"> ${header}</div>`
+
+    tr.appendChild(td1)
+    tr.appendChild(td2)
+
+    headerRow.insertAdjacentElement("afterend", tr)
+  }
+
+  const setUrlString = () => {
+    let path = document.querySelector("input[type='text']").value
+    document.querySelector("#connection_url").innerHTML = `https://${location.host}/echo/${path}`
+  }
+
+  const setStatus = (status) => {
+    console.log(status)
+    document.querySelector(".status").innerHTML = status
+  }
+
+  let reconnectTimer;
+
+  const reconnect = () => {
+    if(state !== 'CLOSED'){
+      setStatus("Reconnecting")
+      reconnectTimer = setInterval( () => {
+        connect()
+      }, 15000);
+    }
+  }
+
+  const connect = () => {
+
+    let path = document.querySelector("input[type='text']").value
+    socket = new WebSocket(`wss://${location.host}/ws/${path}`)
+    setUrlString();
+    socket.onmessage = (ev) => {
+      log(ev.data);
+    }
+
+    socket.onclose = (ev) => {
+      setStatus("Websocket connection closed")
+      if(reconnectTimer)
+        clearInterval(reconnectTimer)
+      reconnect()
+    }
+
+    socket.onopen = (ev) => {
+      setStatus("Websocket connection connected")
+      state = 'CONNECTED'
+      if(reconnectTimer)
+        clearInterval(reconnectTimer)
+    }
+
+    socket.onerror = (ev) => {
+      setStatus("Websocket connection has error")
+    }
+  }
+
+</script>
+</body>
+
+
+</html>
