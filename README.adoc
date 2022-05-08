@@ -1,5 +1,23 @@
 = Echo
 
+Inspired by https://requestcatcher.com, but deploy your own version.
+
+Ideally you should have an HTTP server sitting in front of this app. In my case I used Nginx. A reverse proxy is set up to redirect traffic ft to the application.
+
+"/ws" is where the client connects to the app using a websocket connection. "/" is for requesting the base HTML page(index.html)
+```
+location /ws {
+    proxy_pass http://100.115.24.87:8888/ws;
+    proxy_http_version 1.1;
+    proxy_set_header Upgrade $http_upgrade;
+    proxy_set_header Connection "Upgrade";
+    proxy_set_header Host $host;
+}
+location / {
+   proxy_pass http://100.115.24.87:8888/;
+}
+```
+
 image:https://img.shields.io/badge/vert.x-4.2.7-purple.svg[link="https://vertx.io"]
 
 This application was generated using http://start.vertx.io
