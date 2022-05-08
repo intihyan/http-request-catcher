@@ -1,4 +1,4 @@
-FROM openjdk:11-jre-slim@sha256:31a5d3fa2942eea891cf954f7d07359e09cf1b1f3d35fb32fedebb1e3399fc9e
+FROM amd64/openjdk:11
 RUN mkdir /app
 
 WORKDIR /app
